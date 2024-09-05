@@ -2164,6 +2164,8 @@ Esto proporciona mayor seguridad y menor latencia para acceder a los servicios d
 - La conexión se encripta automáticamente
 - Pasa por la Internet pública
 
+![Site to Site VPN](images/SitetoSiteVPN.png)
+
 **Direct Connect:**
 
 - Establece una conexión física entre las instalaciones y AWS
@@ -2171,7 +2173,172 @@ Esto proporciona mayor seguridad y menor latencia para acceder a los servicios d
 - Pasa por una red privada
 - Tarda al menos un mes en establecerse
 
-![Site to Site VPN](images/Site-to-SiteVPN.png)
+![Site to Site VPN vs Direct Connect](images/SitetoSiteVsDirectConnect.png)
+
+### Transit Gateway
+
+Para tener peering transitivo entre miles de VPC y locales, conexión hub-and-spoke (estrella).
+
+Un único Gateway para proporcionar esta funcionalidad. Funciona con el Gateway de Direct Connect y las conexiones VPN.
+
+![Transit Gateway](images/TransitGateway.png)
+
+## Seguridad y normativa
+
+### Protección DDoS: WAF y Shield
+
+**AWS Shield.**
+
+- Standard: Servicio gratuito que se activa para cada cliente de AWS. Proporciona protección contra ataques como SYN/UDP Floods, ataques de reflexión y otros ataques de capa 3/4.
+
+- Advanced: Servicio opcional de mitigación de DDoS (3000 dólares al mes por organización). Protege contra ataaues más sofisticados en Amazon EC2, Elastic Load Balancing, CloudFront, Global Accelerator y Route 53. Servicio 24/7 con atención al usuario.
+
+**AWF - Web Application Firewall:**
+
+- Protege las aplicaciones web de las vulnerabilidades web más comunes (capa 7: HTTP)
+- Despliega en el Application Load Balancer, API Gateway y CloudFront
+- Define la ACL (Lista de Control de Acceso a la Web):
+  - Las reglas pueden incluir direcciones IP, cabeceras HTTP, cuerpo HTTP o cadenas URI
+  - Protege de los ataques más comunes: Inyección SQL y Cross-Site Scripting (XSS)
+  - Restricciones de tamaño, geo-match (bloquear países)
+  - Reglas basadas en la tasa (para contar las ocurrencias de los eventos)
+
+## AWS Network Firewall
+
+- Protege la VPC
+- Protección de capa 3 a capa 7
+- En cualquier dirección, se puede inspeccionar:
+  - Tráfico de VPC a VPC
+  - Saliente a Internet
+  - Entrante desde Internet
+  - Hacia/desde Direct Connect y VPN Site-to-Site
+
+## Pruebas de penetración en el Cloud de AWS
+
+Los clientes de AWS pueden llevar a cabo evaluaciones de seguridad o pruebas de penetración en su infraestructura de AWS sin la aprobación previa de 8 servicios:
+
+- Instancias de Amazon EC2, NAT Gateways y Elasric Load Balancers
+- Amazon RDS
+- Amazon CloudFront
+- Amazon Aurora
+- Amazon API gateway
+- Funciones AWS Lambda y Lambda Edge
+- recursos de Amazon Lightsail
+- Entornos de Amazon Elastic Beanstalk
+
+## Encriptación con KMS y CloudHSM
+
+**Datos en reposo:** Datos almacenados o archivados en un dispositivo. Ej: EFS - S3
+
+**Datos en tránsito:** Datos que se trasladan de un lugar a otro.
+
+Lo que se busca es cifrar los datos en ambos estados para protegerlos.
+
+### AWS KMS - Key Management Service
+
+Servicio de AWS ue gestiona las claves de cifrado por nosotros.
+
+Opción de cifrado:
+
+- Volúmenes EBS: Cifrar volúmenes
+- Buckets S3: Encriptación de objetos en el lado del servidor
+- Base de datos Redshift: Cifrado de datos
+- Bases de datos RDS: Cifrado de datos
+- Unidades EFS: Cifrado de datos
+
+Cifrado activado automáticamente:
+
+- Logs de CloudTrail
+- S3 Glacier
+- Storage Gateway
+
+### CloudHSM - Módulo de Seguridad de Hardware
+
+AWS proporciona el hardware de encriptación. Pertmite gestionar por completo las claves de cifrado con un elemento físico.
+
+### Tipos de Customer Master Keys: CMK
+
+**CMK gestionado por el cliente:**
+
+- Creada, gestionada y utilizada por el cliente. Puede ser activada o desactivada.
+- Posibilidad de política de rotación
+- Posibilidad de traer una clave propia
+
+**CMK gestionado por AWS:**
+
+- Creada, gestionada y utilizada en nombre del cliente por AWS.
+- Utilizada por los servicios de AWS: aws/s3, aws/ebs, aes/redshift.
+
+**CMK propiedad de AWS:**
+
+- Colección de CMKs que un servicio de AWS posee y gestiona para utilizarlas en múltiples cuenteas.
+- AWS puede utilizarlas para proteger los recursos de la cuenta del usuario sin que las vea.
+
+**Claves CloudHSM (almacén de claves personalizado):**
+
+- Claves generadas desde el propio dispositivo de hardware CloudHSM.
+
+### AWS ACM - Amazon Certificate Manager
+
+Servicio que permite provisionar, gestionar y desplegar fácilmente los sertificados SSL/TLS.
+
+- Se utilizan para proporcionar encriptación en vuelo para los sitios web (HTTPS)
+- Admite certificados TLS públicos y privados
+- Gratuito para los certificados TLS públicos
+- Renovación automatica de certificados TLS
+- Integraciones con (carga de certificados TLS en):
+  - Elasric Load Balancers
+  - Distribuciones de CloudFront
+  - APIs en API Gateway
+
+### AWS Secrets Manager
+
+Servicio destinado a almacenar secretos:
+
+- Capacidad para forzar la rotación de secretos cada X días
+- Automatizar la generación de secretos en la rotación (utiliza Lambda)
+- Integración con Amazon RDS
+- Los secretos se encriptan mediante KMS
+
+### AWS Artifact
+
+NO es realmente un servicio, sino un portal que proporciona a los clientes acceso bajo demanda a la documentación de conformidad y a los acuerdo de AWS.
+
+- Artifact Reports: Pertmite descargar los documentos de seguridad y conformidad de AWS de auditores externos.
+
+- Artifact Agreements. Pertmite revisar, aceptar y hacer un seguimiento del estado de los acuerdos de AWS.
+
+Puede utilizarse para apoyar la auditoría interna o la normativa.
+
+### Amazon GuardDuty
+
+Servicio que permite el descubrimiento inteligente de amenazas para proteger la cuenta de AWS.
+
+- Utiliza algoritmos de ML, detección de anomalías y datos de terceros
+- Se activa con un lick, sin necesidad de instalar un software
+- Los datos de entrada incluyen:
+  - Logs de eventos de CloudTrail
+  - Logs de flujo de la VPC
+  - Logs de DNS
+  - Se pueden configurar otros servicios que proveen logs
+- Se pueden configurar reglas de EventBridge de CloudWtach
+- Las reglas de EventBridge pueden dirigirse a AWS Lambda o SNS
+- Puede proteger contra ataques de criptomonedas
+
+### Inspector
+
+Evaluaciones de seguridad automatizadas:
+
+- Instancias EC2:
+  - Aprovechando el agente AWS System Manager (SSM)
+  - Analiza contra accesibilidad no intencionada a la red
+  - Analizar el SO en ejecución frente a vulnerabilidades conocidas
+- Imágenes ECR: Evaluación de las imágenes de contenedor a medida que se envían
+- Funciones Lambda:
+  - Identifica vulnerabilidades de software en el código de las funciones y en las dependencias de los paquetes
+  - Evaluación de funciones a medida que se despliegan
+
+### AWS Config
 
 ## Ejercicios Prácticos
 
